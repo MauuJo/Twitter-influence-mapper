@@ -9,3 +9,4 @@ python-louvain
 scikit-learn
 tqdm
 jupyter
+nltk

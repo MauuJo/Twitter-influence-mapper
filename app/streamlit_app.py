@@ -28,14 +28,27 @@ def load_data():
     summary_df = pd.read_csv("data/processed/executive_summary.csv")
     topics_df = pd.read_csv("data/processed/community_topics.csv")
     strategic_df = pd.read_csv("data/processed/strategic_insights.csv")
+    community_sentiment_df = pd.read_csv("data/processed/community_sentiment.csv")
+    community_sentiment_df = community_sentiment_df.merge(
+        insights_df[["community_id", "community_label"]].drop_duplicates(),
+        on="community_id",
+        how="left"
+    )
+
+    community_sentiment_df = community_sentiment_df.merge(
+        topics_df[["community_id", "top_keywords"]],
+        on="community_id",
+        how="left"
+    )
+    influencer_sentiment_df = pd.read_csv("data/processed/influencer_sentiment.csv")
 
     with open("data/graphs/twitter_graph.gpickle", "rb") as f:
         G = pickle.load(f)
 
-    return insights_df, summary_df, topics_df, strategic_df, G
+    return insights_df, summary_df, topics_df, strategic_df, community_sentiment_df, influencer_sentiment_df, G
 
 
-insights_df, summary_df, topics_df, strategic_df, G = load_data()
+insights_df, summary_df, topics_df, strategic_df, community_sentiment_df, influencer_sentiment_df, G = load_data()
 
 
 # ---------------------------
@@ -49,6 +62,7 @@ page = st.sidebar.radio(
         "Community Ecosystems",
         "User Intelligence Lookup",
         "Strategic Insights",
+        "Sentiment Intelligence",
         "Network Visualization"
     ]
 )
@@ -322,5 +336,116 @@ elif page == "Strategic Insights":
         Verified accounts demonstrate stronger average influence,
         while {strategic['Largest Community Ecosystem']} represents
         the dominant ecosystem shaping discourse.
+        """
+    )
+
+elif page == "Sentiment Intelligence":
+    st.header("💬 Sentiment & Narrative Intelligence")
+
+    # Overall sentiment distribution
+    st.subheader("Community Sentiment Distribution")
+
+    sentiment_counts = community_sentiment_df["community_sentiment"].value_counts().reset_index()
+    sentiment_counts.columns = ["Sentiment", "Count"]
+
+    fig = px.pie(
+        sentiment_counts,
+        names="Sentiment",
+        values="Count",
+        title="Overall Community Sentiment"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Most negative communities
+    st.subheader("⚠️ Most Negative Communities")
+
+    negative_communities = community_sentiment_df.sort_values(
+        "sentiment_score"
+    ).head(10)
+
+    st.dataframe(
+        negative_communities[
+            [
+                "community_label",
+                "top_keywords",
+                "sentiment_score",
+                "community_sentiment",
+                "tweet_count"
+            ]
+        ],
+        use_container_width=True
+    )
+
+    # Most positive communities
+    st.subheader("🌟 Most Positive Communities")
+
+    positive_communities = community_sentiment_df.sort_values(
+        "sentiment_score",
+        ascending=False
+    ).head(10)
+
+    st.dataframe(
+        positive_communities[
+            [
+                "community_label",
+                "top_keywords",
+                "sentiment_score",
+                "community_sentiment",
+                "tweet_count"
+            ]
+        ],
+        use_container_width=True
+    )
+
+    # Influencer sentiment
+    st.subheader("🧠 Influencer Sentiment Overview")
+
+    insights_df["username"] = insights_df["username"].astype(str).str.lower().str.strip().str.replace("@", "", regex=False)
+
+    influencer_sentiment_df["username"] = influencer_sentiment_df["username"].astype(str).str.lower().str.strip().str.replace("@", "", regex=False)
+
+    influencer_merge = insights_df.merge(
+        influencer_sentiment_df,
+        on="username",
+        how="left"
+    )
+
+    influencer_merge["sentiment_score"] = influencer_merge["sentiment_score"].fillna(0)
+
+    def sentiment_category(score):
+        if score >= 0.05:
+            return "Positive"
+        elif score <= -0.05:
+            return "Negative"
+        else:
+            return "Neutral"
+
+    influencer_merge["sentiment_label"] = influencer_merge["sentiment_score"].apply(sentiment_category)
+
+    top_sentiment_users = influencer_merge.sort_values(
+        "pagerank",
+        ascending=False
+    ).head(20)
+
+    st.dataframe(
+        top_sentiment_users[
+            [
+                "username",
+                "influence_tier",
+                "user_role",
+                "community_label",
+                "sentiment_label",
+                "sentiment_score"
+            ]
+        ],
+        use_container_width=True
+    )
+
+    st.success(
+        """
+        Sentiment analysis reveals emotional patterns within major communities,
+        helping identify polarized clusters, positive ecosystems,
+        and high-risk negative discourse zones.
         """
     )
