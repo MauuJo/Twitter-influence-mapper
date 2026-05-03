@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import networkx as nx
 import pickle
 import plotly.express as px
 from pyvis.network import Network
@@ -12,11 +11,12 @@ import os
 # PAGE CONFIG
 # ---------------------------
 st.set_page_config(
-    page_title="Twitter Influence Mapper",
+    page_title="Twitter Influence Intelligence Platform",
     layout="wide"
 )
 
-st.title("🐦 Twitter Social Network Influence Mapper")
+st.title("🐦 Twitter Social Influence Intelligence Platform")
+st.markdown("Analyze influential users, hidden communities, and information ecosystems across Twitter news discussions.")
 
 
 # ---------------------------
@@ -24,18 +24,17 @@ st.title("🐦 Twitter Social Network Influence Mapper")
 # ---------------------------
 @st.cache_data
 def load_data():
-    metrics_df = pd.read_csv("data/processed/influence_metrics.csv")
-    communities_df = pd.read_csv("data/processed/community_labels.csv")
+    insights_df = pd.read_csv("data/processed/final_social_insights.csv", low_memory=False)
+    summary_df = pd.read_csv("data/processed/executive_summary.csv")
     topics_df = pd.read_csv("data/processed/community_topics.csv")
-    users_df = pd.read_csv("data/processed/cleaned_users.csv")
 
     with open("data/graphs/twitter_graph.gpickle", "rb") as f:
         G = pickle.load(f)
 
-    return metrics_df, communities_df, topics_df, users_df, G
+    return insights_df, summary_df, topics_df, G
 
 
-metrics_df, communities_df, topics_df, users_df, G = load_data()
+insights_df, summary_df, topics_df, G = load_data()
 
 
 # ---------------------------
@@ -44,168 +43,208 @@ metrics_df, communities_df, topics_df, users_df, G = load_data()
 page = st.sidebar.radio(
     "Navigation",
     [
-        "Dashboard Overview",
-        "Influence Leaderboard",
-        "Community Explorer",
-        "User Lookup",
+        "Executive Dashboard",
+        "Influencer Intelligence",
+        "Community Ecosystems",
+        "User Intelligence Lookup",
         "Network Visualization"
     ]
 )
 
 
 # ---------------------------
-# DASHBOARD OVERVIEW
+# EXECUTIVE DASHBOARD
 # ---------------------------
-if page == "Dashboard Overview":
-    st.header("📊 Network Statistics")
+if page == "Executive Dashboard":
+    st.header("📊 Executive Network Overview")
+
+    summary = summary_df.iloc[0]
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Total Nodes", G.number_of_nodes())
-    col2.metric("Total Edges", G.number_of_edges())
-    col3.metric("Communities", communities_df["community_id"].nunique())
-    col4.metric(
-        "Top Influencer",
-        metrics_df.sort_values("pagerank", ascending=False).iloc[0]["username"]
+    col1.metric("Top Influencer", summary["Top Influencer"])
+    col2.metric("Largest Community", summary["Largest Community"])
+    col3.metric("Elite Influencers", summary["Total Elite Influencers"])
+    col4.metric("Verified Elite Influencers", summary["Verified Influencers"])
+
+    st.subheader("Influence Tier Distribution")
+
+    tier_counts = insights_df["influence_tier"].value_counts().reset_index()
+    tier_counts.columns = ["Tier", "Count"]
+
+    fig = px.pie(
+        tier_counts,
+        names="Tier",
+        values="Count",
+        title="Influence Tier Breakdown"
     )
 
-    st.subheader("Top 10 Users by PageRank")
+    st.plotly_chart(fig, use_container_width=True)
 
-    top_users = metrics_df.sort_values("pagerank", ascending=False).head(10)
+    st.subheader("Top 10 Influencers")
+
+    top_users = insights_df.sort_values("pagerank", ascending=False).head(10)
+
+    st.dataframe(
+        top_users[
+            [
+                "username",
+                "influence_tier",
+                "user_role",
+                "community_label",
+                "followersCount",
+                "verified"
+            ]
+        ],
+        use_container_width=True
+    )
+
+
+# ---------------------------
+# INFLUENCER INTELLIGENCE
+# ---------------------------
+elif page == "Influencer Intelligence":
+    st.header("🏆 Influencer Intelligence Center")
+
+    tier_filter = st.selectbox(
+        "Filter by Influence Tier",
+        insights_df["influence_tier"].unique()
+    )
+
+    filtered_df = insights_df[
+        insights_df["influence_tier"] == tier_filter
+    ]
+
+    st.dataframe(
+        filtered_df.sort_values("pagerank", ascending=False),
+        use_container_width=True
+    )
+
+
+# ---------------------------
+# COMMUNITY ECOSYSTEMS
+# ---------------------------
+elif page == "Community Ecosystems":
+    st.header("🏘️ Community Ecosystem Explorer")
+
+    community_labels = insights_df["community_label"].dropna().unique()
+
+    selected_label = st.selectbox(
+        "Select Community Type",
+        sorted(community_labels)
+    )
+
+    community_df = insights_df[
+        insights_df["community_label"] == selected_label
+    ]
+
+    st.subheader(f"{selected_label} Overview")
+
+    st.metric("Community Size", len(community_df))
+
+    st.subheader("Top Community Members")
+
+    st.dataframe(
+        community_df.sort_values("pagerank", ascending=False).head(20),
+        use_container_width=True
+    )
+
+    st.subheader("Community Role Distribution")
+
+    role_counts = community_df["user_role"].value_counts().reset_index()
+    role_counts.columns = ["Role", "Count"]
 
     fig = px.bar(
-        top_users,
-        x="username",
-        y="pagerank",
-        title="Top Influencers"
+        role_counts,
+        x="Role",
+        y="Count",
+        title=f"{selected_label} User Roles"
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 
 # ---------------------------
-# INFLUENCE LEADERBOARD
-# ---------------------------
-elif page == "Influence Leaderboard":
-    st.header("🏆 Influence Leaderboard")
-
-    metric = st.selectbox(
-        "Select Metric",
-        [
-            "pagerank",
-            "degree_centrality",
-            "betweenness_centrality",
-            "eigenvector_centrality"
-        ]
-    )
-
-    leaderboard = metrics_df.sort_values(metric, ascending=False).head(50)
-
-    st.dataframe(
-        leaderboard[["username", metric]],
-        use_container_width=True
-    )
-
-
-# ---------------------------
-# COMMUNITY EXPLORER
-# ---------------------------
-elif page == "Community Explorer":
-    st.header("🏘️ Community Explorer")
-
-    community_ids = sorted(topics_df["community_id"].unique())
-
-    selected_community = st.selectbox(
-        "Select Community ID",
-        community_ids
-    )
-
-    topic_info = topics_df[topics_df["community_id"] == selected_community]
-
-    st.subheader("Community Topic Keywords")
-
-    if not topic_info.empty:
-        st.write(topic_info.iloc[0]["top_keywords"])
-        st.write(f"Community Size: {topic_info.iloc[0]['size']}")
-
-    members = communities_df[
-        communities_df["community_id"] == selected_community
-    ]
-
-    merged_members = members.merge(metrics_df, on="username")
-
-    st.subheader("Top Community Members")
-
-    st.dataframe(
-        merged_members.sort_values("pagerank", ascending=False).head(20),
-        use_container_width=True
-    )
-
-
-# ---------------------------
 # USER LOOKUP
 # ---------------------------
-elif page == "User Lookup":
-    st.header("🔍 User Lookup")
+elif page == "User Intelligence Lookup":
+    st.header("🔍 User Intelligence Lookup")
 
     username = st.text_input("Enter Twitter Username")
 
     if username:
         username = username.lower().strip().replace("@", "")
 
-        user_metrics = metrics_df[
-            metrics_df["username"].str.lower() == username
+        user_df = insights_df[
+            insights_df["username"].str.lower() == username
         ]
 
-        user_community = communities_df[
-            communities_df["username"].str.lower() == username
-        ]
+        if not user_df.empty:
+            user = user_df.iloc[0]
 
-        user_profile = users_df[
-            users_df["username"].str.lower() == username
-        ]
+            st.subheader(f"Profile: @{user['username']}")
 
-        if not user_metrics.empty:
-            st.subheader("Influence Metrics")
-            st.dataframe(user_metrics, use_container_width=True)
+            st.success(
+                f"{user['username']} is a {user['influence_tier']} functioning as a "
+                f"{user['user_role']} within the {user['community_label']} ecosystem."
+            )
 
-            if not user_community.empty:
-                st.write(f"Community ID: {user_community.iloc[0]['community_id']}")
+            col1, col2, col3 = st.columns(3)
 
-            if not user_profile.empty:
-                st.subheader("Profile Metadata")
-                st.dataframe(user_profile, use_container_width=True)
+            col1.metric("Followers", user.get("followersCount", "N/A"))
+            col2.metric("Verified", user.get("verified", "N/A"))
+            col3.metric("Community", user["community_label"])
+
+            st.dataframe(user_df, use_container_width=True)
 
         else:
-            st.warning("User not found.")
+            st.warning("User not found in network.")
 
 
 # ---------------------------
 # NETWORK VISUALIZATION
 # ---------------------------
 elif page == "Network Visualization":
-    st.header("🌐 Network Graph")
+    st.header("🌐 Social Network Visualization")
 
-    st.info("Displaying top 300 users by PageRank for performance.")
+    st.info("Showing top 300 influential users for performance.")
 
-    top_nodes = metrics_df.sort_values(
+    top_nodes = insights_df.sort_values(
         "pagerank",
         ascending=False
     ).head(300)["username"].tolist()
 
     subgraph = G.subgraph(top_nodes)
 
-    net = Network(height="750px", width="100%", directed=True)
+    net = Network(height="800px", width="100%", directed=True)
+
+    color_map = {
+        "Elite Influencer": "red",
+        "Key Amplifier": "orange",
+        "Active Contributor": "blue",
+        "Peripheral Participant": "gray"
+    }
 
     for node in subgraph.nodes():
-        pagerank_score = metrics_df[
-            metrics_df["username"] == node
-        ]["pagerank"].values[0]
+        user_data = insights_df[
+            insights_df["username"] == node
+        ]
+
+        if user_data.empty:
+            continue
+
+        user = user_data.iloc[0]
 
         net.add_node(
             node,
             label=node,
-            size=10 + pagerank_score * 5000
+            title=f"""
+            Role: {user['user_role']}
+            Tier: {user['influence_tier']}
+            Community: {user['community_label']}
+            """,
+            size=10 + user["pagerank"] * 5000,
+            color=color_map.get(user["influence_tier"], "gray")
         )
 
     for source, target, data in subgraph.edges(data=True):
@@ -216,11 +255,11 @@ elif page == "Network Visualization":
         )
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".html")
+    temp_file.close()
+
     net.save_graph(temp_file.name)
 
     with open(temp_file.name, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    st.components.v1.html(html_content, height=800)
-
-    os.unlink(temp_file.name)
+    st.components.v1.html(html_content, height=850)
