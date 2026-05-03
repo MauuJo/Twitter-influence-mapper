@@ -1,0 +1,11 @@
+pandas
+numpy
+networkx
+matplotlib
+plotly
+streamlit
+pyvis
+python-louvain
+scikit-learn
+tqdm
+jupyter

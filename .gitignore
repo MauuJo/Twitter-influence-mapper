@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+
+data/raw/
+data/processed/
+data/graphs/
+data/models/
+
+.env
+*.pkl
+*.gpickle
