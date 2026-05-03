@@ -27,14 +27,15 @@ def load_data():
     insights_df = pd.read_csv("data/processed/final_social_insights.csv", low_memory=False)
     summary_df = pd.read_csv("data/processed/executive_summary.csv")
     topics_df = pd.read_csv("data/processed/community_topics.csv")
+    strategic_df = pd.read_csv("data/processed/strategic_insights.csv")
 
     with open("data/graphs/twitter_graph.gpickle", "rb") as f:
         G = pickle.load(f)
 
-    return insights_df, summary_df, topics_df, G
+    return insights_df, summary_df, topics_df, strategic_df, G
 
 
-insights_df, summary_df, topics_df, G = load_data()
+insights_df, summary_df, topics_df, strategic_df, G = load_data()
 
 
 # ---------------------------
@@ -47,6 +48,7 @@ page = st.sidebar.radio(
         "Influencer Intelligence",
         "Community Ecosystems",
         "User Intelligence Lookup",
+        "Strategic Insights",
         "Network Visualization"
     ]
 )
@@ -263,3 +265,62 @@ elif page == "Network Visualization":
         html_content = f.read()
 
     st.components.v1.html(html_content, height=850)
+
+elif page == "Strategic Insights":
+    st.header("🧠 Why This Network Matters")
+
+    strategic = strategic_df.iloc[0]
+
+    col1, col2 = st.columns(2)
+
+    col1.metric(
+        "Most Influential Verified User",
+        strategic["Most Influential Verified User"]
+    )
+
+    col2.metric(
+        "Most Influential Non-Verified User",
+        strategic["Most Influential Non-Verified User"]
+    )
+
+    col3, col4 = st.columns(2)
+
+    col3.metric(
+        "Largest Community Ecosystem",
+        strategic["Largest Community Ecosystem"]
+    )
+
+    col4.metric(
+        "Potential High-Risk Narrative Cluster",
+        strategic["Potential High-Risk Narrative Cluster"]
+    )
+
+    st.subheader("🔗 Hidden Bridge Accounts")
+    st.write(strategic["Top Bridge Accounts"])
+
+    st.subheader("📈 Verified vs Non-Verified Influence Comparison")
+
+    comparison_df = pd.DataFrame({
+        "Category": ["Verified", "Non-Verified"],
+        "Average Influence": [
+            strategic["Avg Verified Influence"],
+            strategic["Avg Non-Verified Influence"]
+        ]
+    })
+
+    fig = px.bar(
+        comparison_df,
+        x="Category",
+        y="Average Influence",
+        title="Influence Comparison"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.success(
+        f"""
+        Verified accounts demonstrate stronger average influence,
+        while {strategic['Largest Community Ecosystem']} represents
+        the dominant ecosystem shaping discourse.
+        """
+    )
