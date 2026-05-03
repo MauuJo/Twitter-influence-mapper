@@ -1,6 +1,6 @@
 # 🐦 Twitter Social Influence Intelligence Platform
 
-> Analyze influential users, hidden communities, and sentiment patterns across Twitter news discussions — powered by graph analytics, NLP, and an interactive Streamlit dashboard.
+> Analyze influential users, hidden communities, and sentiment patterns across Twitter news discussions — > A descriptive data mining project applying graph mining, unsupervised clustering, text mining, and NLP to extract hidden influence patterns, community structures, and sentiment signals from large-scale Twitter interaction data — presented via an interactive Streamlit dashboard.
 
 ---
 
@@ -34,7 +34,23 @@ This platform processes raw Twitter data through a multi-stage analytics pipelin
 
 ---
 
-## 2. Prerequisites
+## 2. Data Mining Context
+
+This is a **descriptive data mining project** applied to a large-scale social network dataset. It applies several classical data mining techniques to extract non-obvious knowledge from raw, unstructured Twitter interaction data:
+
+| Technique | Where Applied |
+|---|---|
+| Graph Mining | PageRank, betweenness & eigenvector centrality on the interaction network |
+| Unsupervised Clustering | Louvain algorithm for community detection |
+| Classification | Rule-based influence tier and user role assignment from mined features |
+| Text Mining / NLP | TF-IDF keyword extraction and VADER sentiment analysis on tweet content |
+| Feature Engineering | Deriving influence scores from raw edge weights in the interaction graph |
+
+The goal is **knowledge discovery** — surfacing patterns about influence, community structure, and narrative sentiment that are entirely hidden in the raw data. This distinguishes it from a standard analytics or machine learning project: no labelled training data is used, no predictions are made, and all insights emerge from the structure of the data itself.
+
+---
+
+## 3. Prerequisites
 
 Make sure the following are available on your machine before starting:
 
@@ -47,7 +63,7 @@ Make sure the following are available on your machine before starting:
 
 ---
 
-## 3. Download the Dataset
+## 4. Download the Dataset
 
 This project requires **three specific CSV files** from a public Kaggle dataset.
 
@@ -76,7 +92,7 @@ https://www.kaggle.com/datasets/deeguy/twitter-news
 
 ---
 
-## 4. Folder Structure Setup
+## 5. Folder Structure Setup
 
 The project expects a specific folder layout. You need to create the `data/` directory and its subfolders **before** running any scripts.
 
@@ -119,7 +135,7 @@ data/
 
 ---
 
-## 5. Install Dependencies
+## 6. Install Dependencies
 
 ### (Recommended) Create a Virtual Environment
 
@@ -155,7 +171,7 @@ python -c "import nltk; nltk.download('vader_lexicon')"
 
 ---
 
-## 6. Running the Pipeline
+## 7. Running the Pipeline
 
 The pipeline has **8 scripts** that must be run **in order**. Each script reads output from the previous one — do not skip steps.
 
@@ -296,7 +312,7 @@ python src/analytics/strategic_insights.py
 
 ---
 
-## 7. Quick Reference — Full Command Sequence
+## 8. Quick Reference — Full Command Sequence
 
 Copy and paste this entire block to run the pipeline from start to finish:
 
@@ -315,7 +331,7 @@ python src/analytics/strategic_insights.py
 
 ---
 
-## 8. Expected Final Data Folder
+## 9. Expected Final Data Folder
 
 After all 8 scripts complete, your `data/` folder should look exactly like this:
 
@@ -345,7 +361,7 @@ data/
 
 ---
 
-## 9. Launch the Streamlit Dashboard
+## 10. Launch the Streamlit Dashboard
 
 Once all pipeline scripts have completed, start the interactive web app:
 
@@ -373,7 +389,7 @@ http://localhost:8501
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 **`FileNotFoundError` on startup**
 
@@ -407,7 +423,7 @@ http://localhost:8501
 
 ---
 
-## 11. Pipeline at a Glance
+## 12. Pipeline at a Glance
 
 | Step | Script                   | Input                       | Output                      |
 | ---- | ------------------------ | --------------------------- | --------------------------- |
