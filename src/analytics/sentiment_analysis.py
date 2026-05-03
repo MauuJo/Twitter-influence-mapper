@@ -64,12 +64,10 @@ class SentimentAnalyzer:
     def community_sentiment_summary(self, merged_df):
         print("Generating community sentiment summaries...")
 
-        summary = merged_df.groupby("community_id").agg({
-            "sentiment_score": "mean",
-            "username": "count"
-        }).reset_index()
-
-        summary.rename(columns={"username": "tweet_count"}, inplace=True)
+        summary = merged_df.groupby("community_id").agg(
+            sentiment_score=("sentiment_score", "mean"),
+            tweet_count=("username", "count")
+        ).reset_index()
 
         def classify(score):
             if score >= 0.05:
@@ -80,9 +78,7 @@ class SentimentAnalyzer:
                 return "Neutral"
 
         summary["community_sentiment"] = summary["sentiment_score"].apply(classify)
-
         return summary
-
     def influencer_sentiment_summary(self, merged_df):
         influencer_summary = merged_df.groupby("username").agg({
             "sentiment_score": "mean",

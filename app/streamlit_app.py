@@ -29,17 +29,43 @@ def load_data():
     topics_df = pd.read_csv("data/processed/community_topics.csv")
     strategic_df = pd.read_csv("data/processed/strategic_insights.csv")
     community_sentiment_df = pd.read_csv("data/processed/community_sentiment.csv")
+
+    # Cast community_id to same type across all dataframes
+    community_sentiment_df["community_id"] = community_sentiment_df["community_id"].astype(int)
+    topics_df["community_id"] = topics_df["community_id"].astype(int)
+    insights_df["community_id"] = pd.to_numeric(insights_df["community_id"], errors="coerce").dropna().astype(int)
+
+    # Build a clean community_id -> label map from insights_df (one row per community)
+    community_label_map = (
+        insights_df[["community_id", "community_label"]]
+        .dropna(subset=["community_label"])
+        .drop_duplicates(subset="community_id")
+    )
+
+    # Build a clean community_id -> keywords map from topics_df
+    topics_clean = (
+        topics_df[["community_id", "top_keywords"]]
+        .dropna(subset=["top_keywords"])
+        .drop_duplicates(subset="community_id")
+    )
+
+    # Merge both
     community_sentiment_df = community_sentiment_df.merge(
-        insights_df[["community_id", "community_label"]].drop_duplicates(),
+        community_label_map,
+        on="community_id",
+        how="left"
+    )
+    community_sentiment_df = community_sentiment_df.merge(
+        topics_clean,
         on="community_id",
         how="left"
     )
 
-    community_sentiment_df = community_sentiment_df.merge(
-        topics_df[["community_id", "top_keywords"]],
-        on="community_id",
-        how="left"
+    # For communities too small to get a topic label, fall back to community_id as label
+    community_sentiment_df["community_label"] = community_sentiment_df["community_label"].fillna(
+        "Community " + community_sentiment_df["community_id"].astype(str)
     )
+    community_sentiment_df["top_keywords"] = community_sentiment_df["top_keywords"].fillna("< 10 tweets — no keywords")
     influencer_sentiment_df = pd.read_csv("data/processed/influencer_sentiment.csv")
 
     with open("data/graphs/twitter_graph.gpickle", "rb") as f:
@@ -360,9 +386,13 @@ elif page == "Sentiment Intelligence":
     # Most negative communities
     st.subheader("⚠️ Most Negative Communities")
 
-    negative_communities = community_sentiment_df.sort_values(
-        "sentiment_score"
-    ).head(10)
+    MIN_TWEETS = 10
+
+    filtered_sentiment_df = community_sentiment_df[
+        community_sentiment_df["tweet_count"] >= MIN_TWEETS
+    ]
+
+    negative_communities = filtered_sentiment_df.sort_values("sentiment_score").head(10)
 
     st.dataframe(
         negative_communities[
@@ -380,10 +410,7 @@ elif page == "Sentiment Intelligence":
     # Most positive communities
     st.subheader("🌟 Most Positive Communities")
 
-    positive_communities = community_sentiment_df.sort_values(
-        "sentiment_score",
-        ascending=False
-    ).head(10)
+    positive_communities = filtered_sentiment_df.sort_values("sentiment_score", ascending=False).head(10)
 
     st.dataframe(
         positive_communities[
@@ -405,13 +432,17 @@ elif page == "Sentiment Intelligence":
 
     influencer_sentiment_df["username"] = influencer_sentiment_df["username"].astype(str).str.lower().str.strip().str.replace("@", "", regex=False)
 
-    influencer_merge = insights_df.merge(
-        influencer_sentiment_df,
+    # FIX: deduplicate insights before merge, use NaN not 0 for missing sentiment
+    insights_deduped = insights_df.drop_duplicates(subset="username").copy()
+    insights_deduped["username"] = insights_deduped["username"].astype(str).str.lower().str.strip().str.replace("@", "", regex=False)
+
+    influencer_sentiment_df["username"] = influencer_sentiment_df["username"].astype(str).str.lower().str.strip().str.replace("@", "", regex=False)
+
+    influencer_merge = insights_deduped.merge(
+        influencer_sentiment_df[["username", "sentiment_score"]],
         on="username",
         how="left"
     )
-
-    influencer_merge["sentiment_score"] = influencer_merge["sentiment_score"].fillna(0)
 
     def sentiment_category(score):
         if score >= 0.05:
@@ -420,8 +451,13 @@ elif page == "Sentiment Intelligence":
             return "Negative"
         else:
             return "Neutral"
+    # Don't fillna(0) — NaN means no tweets found, not neutral sentiment
+    influencer_merge["sentiment_label"] = influencer_merge["sentiment_score"].apply(
+        lambda score: sentiment_category(score) if pd.notna(score) else "No Data"
+    )
+    
 
-    influencer_merge["sentiment_label"] = influencer_merge["sentiment_score"].apply(sentiment_category)
+    
 
     top_sentiment_users = influencer_merge.sort_values(
         "pagerank",
